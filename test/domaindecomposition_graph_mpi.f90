@@ -52,6 +52,7 @@ contains
     logical,allocatable :: expected(:)
     integer,allocatable :: sources(:),destinations(:)
     integer,allocatable :: sourceWeights(:),destinationWeights(:)
+    integer,allocatable :: offsets(:)
 
     bcids(1:6) = SELF_BC_PRESCRIBED
     call mesh%StructuredMesh(2,2,2,1,1,1,0.1_prec,0.13_prec,0.17_prec,bcids)
@@ -146,6 +147,17 @@ contains
       enddo
     endif
 
+    allocate(offsets(1:mesh%decomp%nRanks+1))
+    offsets = mesh%decomp%offsetElem
+    call mesh%decomp%GenerateDecompositionFromOffsets(offsets,64*max(1,mesh%nUniqueSides))
+    if(mesh%decomp%exchangeGraphReady .or. &
+       mesh%decomp%exchangeComm /= MPI_COMM_NULL .or. &
+       mesh%decomp%nExchangeNeighbors /= 0) then
+      print*,"FAIL: decomposition regeneration did not reset the exchange graph"
+      failures = failures+1
+    endif
+    call mesh%decomp%EnsureExchangeGraph(mesh%sideInfo,mesh%nElem,6, &
+                                         mesh%mortarInfo,mesh%nMortars,4)
     call MPI_Allreduce(failures,globalFailures,1,MPI_INTEGER,MPI_SUM, &
                        mesh%decomp%mpiComm,ierror)
     if(ierror /= MPI_SUCCESS) then
@@ -162,7 +174,7 @@ contains
     if(mesh%decomp%rankId == 0) print*,"RESULT: domaindecomposition_graph_mpi r=",r
     flush(6)
 
-    deallocate(expected,sources,destinations,sourceWeights,destinationWeights)
+    deallocate(expected,sources,destinations,sourceWeights,destinationWeights,offsets)
     call mesh%Free()
 
   endfunction domaindecomposition_graph_mpi
