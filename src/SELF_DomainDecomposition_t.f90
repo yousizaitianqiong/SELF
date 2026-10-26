@@ -269,7 +269,6 @@ contains
 
     call this%ResetExchangeGraph()
 
-
     if(offsetElem(1) /= 0) then
       error stop "GenerateDecompositionFromOffsets : offsetElem(1) must be 0"
     endif
